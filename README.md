@@ -1,7 +1,7 @@
 # Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana）收集日志
 ## 简述
 最近需要用到容器日志收集，目前比较流行的应该是EL(Logstash)K,EF(Fluentd)K，相比之下Fluentd要比Logstash轻量级，所以决定采用Fluentd。
-本文用于记录如何使用Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana） 收集Docker容器日志，使用EFK，可以无侵入代码，获得灵活，易用的日志收集和分析。
+本文用于记录如何使用Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana） 收集Docker容器日志，使用EFK，可以获得灵活，易用的日志收集和分析。
 fluentd镜像构建相关文件、docker-compose.yml文件都放在 https://github.com/LXD24/EFK 仓库里。
 
 ## 1、首先弄个fluentd镜像
