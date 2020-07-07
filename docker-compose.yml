@@ -1,0 +1,50 @@
+version: '2'
+services:
+  webapplication1:
+    image: webapplication1
+    container_name: webapplication1
+    ports:
+      - '8001:80'
+    links:
+      - fluentd
+    logging:
+      driver: 'fluentd'
+      options:
+        fluentd-address: localhost:24224
+        tag: httpd.access
+
+  fluentd:
+    image: custom-fluentd
+    container_name: fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+    links:
+      - 'elasticsearch'
+    ports:
+      - '24224:24224'
+      - '24224:24224/udp'
+
+  elasticsearch:
+    image: elasticsearch:6.6.2
+    container_name: elasticsearch
+    ports:
+      - '9200:9200'
+    environment:
+      - 'discovery.type=single-node'
+      - 'cluster.name=docker-cluster'
+      - 'bootstrap.memory_lock=true'
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: kibana:6.6.2
+    container_name: kibana
+    links:
+      - 'elasticsearch'
+    ports:
+      - '5601:5601'
