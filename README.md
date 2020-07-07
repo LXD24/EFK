@@ -3,8 +3,8 @@
 本文用于记录如何使用Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana） 收集Docker容器日志，使用EFK，可以无侵入代码，获得灵活，易用的日志收集和分析。
 
 ## 1、首先弄个fluentd镜像
-因为需要Fluentd需要fluent-plugin-elasticsearch插件才能将日志传输到Elasticsearch 存储，所以需要根据fluentd基础镜像构建一个集成fluent-plugin-elasticsearch插件的镜像，当然也可以在网上找一个已经集成的镜像，这里懒得找就自己构建了。
-按照 https://github.com/fluent/fluentd-docker-image/blob/master/README.md 上的说明创建个Dockerfile文件,看了说明需要先下载两个文件（`fluent.conf` 和 `entrypoint.sh`），github上有地址。
+因为Fluentd需要fluent-plugin-elasticsearch插件才能将日志传输到Elasticsearch 存储，所以需要根据fluentd基础镜像构建一个集成fluent-plugin-elasticsearch插件的镜像，当然也可以在网上找一个已经集成的镜像，这里懒得找就自己构建了。
+按照 https://github.com/fluent/fluentd-docker-image/blob/master/README.md 上的说明创建个Dockerfile文件,看了说明需要先下载两个文件（`fluent.conf` 和 `entrypoint.sh`），上面都有下载地址。
 
 Dockerfile内容如下，因为我想着到时挂载`fluent.conf`配置文件，所以删掉了 `COPY fluent.conf /fluentd/etc/` 这句复制配置文件的命令。
 ```
