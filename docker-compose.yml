@@ -1,8 +1,8 @@
 version: '2'
 services:
-  webapplication1:
-    image: webapplication1
-    container_name: webapplication1
+  nginx:
+    image: nginx
+    container_name: nginx
     ports:
       - '8001:80'
     links:
@@ -11,7 +11,7 @@ services:
       driver: 'fluentd'
       options:
         fluentd-address: localhost:24224
-        tag: httpd.access
+        tag: nginx
 
   fluentd:
     image: custom-fluentd
