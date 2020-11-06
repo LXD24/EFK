@@ -1,38 +1,30 @@
-# Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana）收集日志
 ## 简述
-最近需要用到容器日志收集，目前比较流行的应该是EL(Logstash)K,EF(Fluentd)K，相比之下Fluentd要比Logstash轻量级，所以决定采用Fluentd。
-本文用于记录如何使用Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana） 收集Docker容器日志，使用EFK，可以获得灵活，易用的日志收集和分析。
+最近需要用到容器日志收集,目前比较流行的应该是EL(Logstash)K,EF(Fluentd)K,相比之下Fluentd要比Logstash轻量级,所以决定采用Fluentd。
+
+本文用于记录如何使用Docker Compose部署 EFK（Elasticsearch + Fluentd + Kibana） 收集Docker容器日志,使用EFK,可以获得灵活,易用的日志收集和分析。
 fluentd镜像构建相关文件、docker-compose.yml文件都放在 https://github.com/LXD24/EFK 仓库里。
 
 ## 1、首先弄个fluentd镜像
-因为Fluentd需要fluent-plugin-elasticsearch插件才能将日志传输到Elasticsearch，所以需要根据fluentd基础镜像构建一个集成fluent-plugin-elasticsearch插件的镜像，当然也可以在网上找一个已经集成的镜像，这里懒得找就自己构建了。
-按照 https://github.com/fluent/fluentd-docker-image/blob/master/README.md 上的说明创建个Dockerfile文件,看了说明需要先下载两个文件（`fluent.conf` 和 `entrypoint.sh`），上面都有下载地址。
+因为Fluentd需要fluent-plugin-elasticsearch插件才能将日志传输到Elasticsearch,所以需要根据fluentd基础镜像构建一个集成插件的镜像。
 
-Dockerfile内容如下，因为我想着到时挂载`fluent.conf`配置文件，所以删掉了 `COPY fluent.conf /fluentd/etc/` 这句复制配置文件的命令。
+相关资料：
+
+fluentd官方镜像：https://hub.docker.com/_/fluentd?tab=description
+fluentd官方构建镜像实例：https://github.com/fluent/fluentd-docker-image/blob/master/README.md
+
+新建个dockerfile文件构建镜像,dockerfile内容很简单,基础镜像上在装个 `fluent-plugin-elasticsearch` 插件,装插件需要切换到root用户,否则会提示没权限(没有sudo命令)
 ```
-FROM fluent/fluentd:v1.11-1
-
-# Use root account to use apk
-USER root
-
-# below RUN includes plugin as examples elasticsearch is not required
-# you may customize including plugins as you wish
-RUN apk add --no-cache --update --virtual .build-deps \
-        sudo build-base ruby-dev \
- && sudo gem install fluent-plugin-elasticsearch \
- && sudo gem sources --clear-all \
- && apk del .build-deps \
- && rm -rf /tmp/* /var/tmp/* /usr/lib/ruby/gems/*/cache/*.gem 
-
-#COPY fluent.conf /fluentd/etc/
-COPY entrypoint.sh /bin/
-
-USER fluent
+FROM fluent/fluentd:v1.9.1-debian-1.0
+User root
+RUN gem install fluent-plugin-elasticsearch
+User fluent
 ```
-然后就是`docker build -t custom-fluentd:latest ./` 看着一顿下载构建镜像。
+
+然后执行`docker build -t custom-fluentd:latest ./` 构建镜像,下载fluentd基础镜像的时间可能会稍长
 
 ## 2、准备一个会输出日志的镜像
-这里我随便弄了个.net core web服务，输出下访问接口的日志到控制台。
+
+这里我就用了nginx官方镜像,每次访问nginx的时候它都会输出一段日志。
 
 ## 3、编写docker-compose.yml
 
@@ -40,9 +32,9 @@ USER fluent
 ```
 version: '2'
 services:
-  webapplication1:
-    image: webapplication1
-    container_name: webapplication1
+  nginx:
+    image: nginx
+    container_name: nginx
     ports:
       - '8001:80'
     links:
@@ -51,7 +43,7 @@ services:
       driver: 'fluentd'
       options:
         fluentd-address: localhost:24224
-        tag: httpd.access
+        tag: nginx
 
   fluentd:
     image: custom-fluentd
@@ -88,9 +80,11 @@ services:
       - 'elasticsearch'
     ports:
       - '5601:5601'
+
 ```
-webapplication1是我创建的web服务，需要配置日志驱动为fluentd
-fluentd需要挂载`fluent.conf`配置文件,`fluent.conf`内容如下：
+nginx映射本地端口8001,需要配置日志驱动为fluentd; 
+kibana映射本地5601端口；
+fluentd需要挂载`fluent.conf`配置文件,主要配置链接es的信息和存储日志的格式。内容如下：
 ```
 <source>
   @type forward
@@ -119,13 +113,16 @@ fluentd需要挂载`fluent.conf`配置文件,`fluent.conf`内容如下：
 
 ## 4、启动
 到yml文件夹目录下敲 `docker-compose up` 启动。
-![](https://img2020.cnblogs.com/blog/1624324/202007/1624324-20200707105743483-973345932.png)
-看到四个服务都是done的就可以了。
-先访问下webapplication1造点日志，然后访问 http://localhost:5601 ，为Kibana设置匹配的索引名
+![](https://img2020.cnblogs.com/blog/1624324/202011/1624324-20201106182742228-843225386.png)
 
-![](https://img2020.cnblogs.com/blog/1624324/202007/1624324-20200707113843514-1785472362.png)
+先访问下nginx主页 ` curl http://localhost:8001 ` ,让他输出点访问日志
 
-然后就能看到收集的日志了。
+打开kibana配置下Index Patterns
+![](https://img2020.cnblogs.com/blog/1624324/202011/1624324-20201106183917648-1189431736.png)
 
-![](https://img2020.cnblogs.com/blog/1624324/202007/1624324-20200707114012637-1951440371.png)
+![](https://img2020.cnblogs.com/blog/1624324/202011/1624324-20201106183929062-486750569.png)
 
+
+
+然后进入discover,就可以看到fluentd收集上来的日志（container_name为/nginx）
+![](https://img2020.cnblogs.com/blog/1624324/202011/1624324-20201106183234686-1660253737.png)
